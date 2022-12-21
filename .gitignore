@@ -80,7 +80,7 @@ celerybeat-schedule
 
 # Environments
 .env
-#.venv
+.venv
 env/
 venv/
 ENV/
@@ -97,3 +97,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+
+# rdnm DB file to ignore
+PyWhatKit_DB.txt
