@@ -111,6 +111,7 @@ Goûter 2: _{gouter_2}_
 Bonne journée !
 '''
 
+
 class Jour():
     def __init__(self, date):
         self.date = datetime.strftime(date, "%A %d/%m/%y")
@@ -154,12 +155,14 @@ def get_menu_rows(menu):
     table = menu[0].find_all('table')[0]
     return table.find_all('tr')
 
+
 def get_cell_text(cols, index):
     text = ''
     if len(cols[index]):
         text = cols[index].get_text(
             strip=True, separator='\n').splitlines()[0]
     return text
+
 
 def set_categorie(semaine, rows, categorie):
     cols = rows[categorie.get('index')].find_all('td')
@@ -187,18 +190,19 @@ def set_daily_menus(semaine, rows):
 
 
 def _wait_for_presence_of_an_element(browser, selector):
-	element = None
+    element = None
 
-	try:
-		element = WebDriverWait(browser, INTEGERS.DEFAULT_WAIT).until(
-			EC.presence_of_element_located(selector)
-		)
-	except:
-		pass
-	finally:
-		return element
+    try:
+        element = WebDriverWait(browser, INTEGERS.DEFAULT_WAIT).until(
+            EC.presence_of_element_located(selector)
+        )
+    except:
+        pass
+    finally:
+        return element
 
-def sessionOpener(): 
+
+def sessionOpener():
     with open(WA_FILE_PATH, "r", encoding='UTF-8') as session_file:
         session = session_file.read()
     browser = webdriver.Chrome()
@@ -209,38 +213,40 @@ def sessionOpener():
     print(script)
     browser.execute_script(script, session)
     browser.refresh
-
     input('test')
+
+
+def get_monday_date():
+    today = datetime.now()
+    start_of_week = today - timedelta(days=today.weekday())
+    return start_of_week.strftime('%y%m%d')
+
 
 def main(args):
     logger.info("Cantine Maternelle Bordeaux Scrapping Script")
     logger.info(args)
-    html = get_raw_content(args.date)
+    start_of_week_date = get_monday_date()
+    html = get_raw_content(start_of_week_date)
     soup = BeautifulSoup(html.content, "html.parser")
     menu = soup.find_all("div", class_="menu")
     rows = get_menu_rows(menu)
-    semaine = init_semaine(args.date)
+    semaine = init_semaine(start_of_week_date)
     set_daily_menus(semaine, rows)
-    json_menu = json.dumps(str(semaine), ensure_ascii=False, indent=2)
-    # print(json_menu)
     with open('json_menu.json', 'w') as outfile:
         json.dump(str(semaine), outfile)
     # sessionOpener()
     day_number = datetime.now().weekday()
     day_menu = semaine.jours[day_number]
     menu = template.format(**vars(day_menu)).replace("__", "")
-    print(menu)
-    # fomatted_message = template.format()
     pywhatkit.sendwhatmsg_to_group_instantly(GROUP_ID, menu)
 
 
 def get_args():
-
     parser = argparse.ArgumentParser()
 
     # Required positional argument
-    parser.add_argument(
-        "date", help="Required date of start of the week, YYMMDD")
+    # parser.add_argument(
+    #     "date", help="Required date of start of the week, YYMMDD")
 
     # Specify output of "--version"
     parser.add_argument(
