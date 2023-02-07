@@ -6,24 +6,22 @@ __license__ = "MIT"
 
 import argparse
 from datetime import datetime, timedelta
-import json
 from bs4 import BeautifulSoup
-from logzero import logger
+from logzero import logger, logfile
 import requests
 import pywhatkit
-from constants import *
-from selenium import webdriver
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import locale
+from pathlib import Path
 
+LOG_FILE = './tmp/script.log'
 BASE_URL = 'https://www.sivu-bordeauxmerignac.fr/'
 MENU_QUERY_PATTERN = '?menu-repas=bordeaux-maternelle-{date}'
 GROUP_ID = 'KKJ70JWgBOk661QxWYOxsL'
-WA_FILE_PATH = "session.wa"
-SET_SESSION_FILE_PATH = 'set_wa_session.js'
+
 session = requests.Session()
 locale.setlocale(category=locale.LC_ALL, locale="fr_FR.utf8")
+Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
+logfile(LOG_FILE)
 
 categories = {
     "potage_entree": {
@@ -38,49 +36,61 @@ categories = {
         "name": "entree_sans_porc",
         "index": 3
     },
+    "entree_sans_viande": {
+        "name": "entree_sans_viande",
+        "index": 4
+    },
     "entree_vg": {
         "name": "entree_vg",
-        "index": 4
+        "index": 5
     },
     "plat_classique": {
         "name": "plat_classique",
-        "index": 5
+        "index": 6
     },
     "plat_sans_porc": {
         "name": "plat_sans_porc",
-        "index": 6
+        "index": 7
+    },
+    "plat_sans_viande": {
+        "name": "plat_sans_viande",
+        "index": 8
     },
     "plat_vg": {
         "name": "plat_vg",
-        "index": 7
+        "index": 9
     },
     "garniture_classique": {
         "name": "garniture_classique",
-        "index": 8
+        "index": 10
     },
     "garniture_sans_porc": {
         "name": "garniture_sans_porc",
-        "index": 9
+        "index": 11
+    },
+    "garniture_sans_viande": {
+        "name": "garniture_sans_viande",
+        "index": 12
     },
     "garniture_vg": {
         "name": "garniture_vg",
-        "index": 10
+        "index": 13
     },
     "produit_laitier": {
         "name": "produit_laitier",
-        "index": 11
+        "index": 14
     },
     "dessert": {
         "name": "dessert",
-        "index": 12
+        "index": 15
     },
     "gouter_1": {
         "name": "gouter_1",
-        "index": 13
+        "index": 16
     },
     "gouter_2": {
         "name": "gouter_2",
-        "index": 14
+        "index": 17
     },
 
 }
@@ -92,13 +102,16 @@ template = '''
 Potage / Entrée: _{potage_entree}_
 Entrée classique: _{entree_classique}_
 Entrée sans porc: _{entree_sans_porc}_
+Entrée sans viande: _{entree_sans_viande}_
 Entrée végétarien: _{entree_vg}_
 
 Plat classique: _{plat_classique}_
 Plat sans porc: _{plat_sans_porc}_
+Plat sans viande: _{plat_sans_viande}_
 Plat végétarien: _{plat_vg}_
 Garniture classique: _{garniture_classique}_
 Garniture sans porc: _{garniture_sans_porc}_
+Garniture sans viande: _{garniture_sans_viande}_
 Garniture végétarien: _{garniture_vg}_
 
 Produit laitier: _{produit_laitier}_
@@ -118,12 +131,15 @@ class Jour():
         self.potage_entree = ''
         self.entree_classique = ''
         self.entree_sans_porc = ''
+        self.entree_sans_viande = ''
         self.entree_vg = ''
         self.plat_classique = ''
         self.plat_sans_porc = ''
+        self.plat_sans_viande = ''
         self.plat_vg = ''
         self.garniture_classique = ''
         self.garniture_sans_porc = ''
+        self.garniture_sans_viande = ''
         self.garniture_vg = ''
         self.produit_laitier = ''
         self.dessert = ''
@@ -187,33 +203,7 @@ def set_daily_menus(semaine, rows):
         for categorie_name in generator:
             categorie = categories[categorie_name]
             set_categorie(semaine, rows, categorie)
-
-
-def _wait_for_presence_of_an_element(browser, selector):
-    element = None
-
-    try:
-        element = WebDriverWait(browser, INTEGERS.DEFAULT_WAIT).until(
-            EC.presence_of_element_located(selector)
-        )
-    except:
-        pass
-    finally:
-        return element
-
-
-def sessionOpener():
-    with open(WA_FILE_PATH, "r", encoding='UTF-8') as session_file:
-        session = session_file.read()
-    browser = webdriver.Chrome()
-    browser.get("https://web.whatsapp.com/")
-    _wait_for_presence_of_an_element(browser, SELECTORS.QR_CODE)
-    with open(SET_SESSION_FILE_PATH, "r", encoding='UTF-8') as set_session_file:
-        script = set_session_file.read()
-    print(script)
-    browser.execute_script(script, session)
-    browser.refresh
-    input('test')
+    logger.info("Daily menus retrieved!")
 
 
 def get_monday_date():
@@ -222,33 +212,38 @@ def get_monday_date():
     return start_of_week.strftime('%y%m%d')
 
 
-def main(args):
-    logger.info("Cantine Maternelle Bordeaux Scrapping Script")
-    logger.info(args)
-    start_of_week_date = get_monday_date()
-    html = get_raw_content(start_of_week_date)
-    soup = BeautifulSoup(html.content, "html.parser")
-    menu = soup.find_all("div", class_="menu")
-    rows = get_menu_rows(menu)
-    semaine = init_semaine(start_of_week_date)
-    set_daily_menus(semaine, rows)
-    with open('json_menu.json', 'w') as outfile:
-        json.dump(str(semaine), outfile)
-    # sessionOpener()
+def get_soup(html):
+
+    soup = BeautifulSoup(html.content, "html5lib")
+    return soup.find_all("div", class_="menu")
+
+
+def send_message(semaine: Semaine):
     day_number = datetime.now().weekday()
     day_menu = semaine.jours[day_number]
     menu = template.format(**vars(day_menu)).replace("__", "")
     pywhatkit.sendwhatmsg_to_group_instantly(GROUP_ID, menu)
+    logger.info("Check Whatsapp for sent message!")
+
+
+def main(args):
+    try:
+        logger.info("Cantine Maternelle Bordeaux Scrapping Script")
+        start_of_week_date = get_monday_date()
+        html = get_raw_content(start_of_week_date)
+
+        menu = get_soup(html)
+        rows = get_menu_rows(menu)
+        semaine = init_semaine(start_of_week_date)
+        set_daily_menus(semaine, rows)
+
+        send_message(semaine)
+    except Exception as e:
+        logger.error(str(e), exc_info=True)
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-
-    # Required positional argument
-    # parser.add_argument(
-    #     "date", help="Required date of start of the week, YYMMDD")
-
-    # Specify output of "--version"
     parser.add_argument(
         "--version",
         action="version",
@@ -260,14 +255,14 @@ def get_args():
 def get_raw_content(date):
     headers = {
         'Accept': 'text/html',
-        'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246"
+        "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:92.0) Gecko/20100101 Firefox/92.0",
     }
     url = BASE_URL+MENU_QUERY_PATTERN.format(date=date)
     response = session.get(url, headers=headers)
     if response.status_code == 200:
-        logger.debug(f"Succesfully retrieved content from date {date}")
+        logger.info(f"Succesfully retrieved content from date {date}")
     else:
-        logger.debug(
+        logger.error(
             f"Something wnet wrong while retrieving content from date {date}, status code {response.status_code}")
     return response
 
