@@ -19,7 +19,7 @@ MENU_QUERY_PATTERN = '?menu-repas=bordeaux-maternelle-{date}'
 GROUP_ID = 'KKJ70JWgBOk661QxWYOxsL'
 
 session = requests.Session()
-locale.setlocale(category=locale.LC_ALL, locale="fr_FR.utf8")
+# locale.setlocale(category=locale.LC_ALL, locale="fr_FR.utf8")
 Path(LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 logfile(LOG_FILE)
 
